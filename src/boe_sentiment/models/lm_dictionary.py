@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-LM_MASTER_PATH = Path(__file__).resolve().parents[3] / "data" / "lm_master.csv"
+LM_MASTER_PATH = Path.cwd() / "data" / "lm_master.csv"
 
 # Monetary policy terms that override LM base classification.
 # These capture language specific to central bank communication

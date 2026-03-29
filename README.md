@@ -86,6 +86,90 @@ load_dotenv()
 # Fetch MPC minutes
 docs = MPCScraper(cache_dir="data/raw").fetch_minutes(2018, 2024)
 
+# BoE Sentiment Engine
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+An NLP pipeline that quantifies Bank of England Monetary Policy Committee (MPC) hawkishness from meeting minutes and backtests the resulting signal against UK gilt yields (2018-2024).
+
+## What it does
+
+1. **Scrapes** MPC minutes (2018-2024) directly from the Bank of England website
+2. **Scores** each document using a two-layer sentiment model:
+   - Base layer: Loughran-McDonald (2011) master dictionary (positive/negative word lists)
+   - Override layer: 71 domain-specific monetary policy terms tuned for central bank language
+   - Negation handling with a 3-word lookback window
+3. **Builds** a composite hawkishness index with EMA smoothing and z-score normalisation
+4. **Backtests** the signal against 10-year gilt yield changes via:
+   - Granger causality testing
+   - Lead-lag cross-correlation analysis
+   - Regime-conditional OLS (high vs low yield volatility, median split on 6-month rolling std)
+   - Information coefficient at 1M and 3M horizons
+
+## Results
+
+| Metric | Value |
+| --- | --- |
+| Granger causality p-value | 0.2148 |
+| Optimal predictive lag | 1 month |
+| IC at 1-month horizon | 0.098 |
+| IC at 3-month horizon | 0.085 |
+| Regime beta (high volatility) | 0.111 (p=0.261) |
+| Regime beta (low volatility) | 0.018 (p=0.634) |
+| N (observations) | 52 |
+
+The dictionary-based sentiment signal does not carry statistically significant predictive content for gilt yields at conventional levels. This is consistent with efficient incorporation of monetary policy expectations into bond prices ahead of minutes publication.
+
+## Installation
+
+```bash
+git clone https://github.com/kostadinstoyanovuk/boe-sentiment-engine.git
+cd boe-sentiment-engine
+pip install .
+```
+
+Or with Poetry:
+
+```bash
+poetry install
+```
+
+## Setup
+
+**1. Download the Loughran-McDonald master dictionary:**
+
+```bash
+python scripts/download_lm.py
+```
+
+This downloads the LM master dictionary CSV from [SRAF at Notre Dame](https://sraf.nd.edu/loughranmcdonald-master-dictionary/) and saves it to `data/lm_master.csv`. If the automatic download fails, download the CSV manually from the link above and place it at `data/lm_master.csv`.
+
+The pipeline will still run without this file (using override terms only), but the full LM base layer will be missing.
+
+**2. Set up your FRED API key:**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add your [FRED API key](https://fred.stlouisfed.org/docs/api/api_key.html).
+
+## Usage
+
+```python
+import os
+from dotenv import load_dotenv
+
+from boe_sentiment.data.scraper import MPCScraper
+from boe_sentiment.analysis.index_builder import HawkishnessIndexBuilder
+from boe_sentiment.analysis.backtester import GiltBacktester
+
+load_dotenv()
+
+# Fetch MPC minutes
+docs = MPCScraper(cache_dir="data/raw").fetch_minutes(2018, 2024)
+
 # Build hawkishness index (dictionary model only, no GPU needed)
 index = HawkishnessIndexBuilder(finbert_weight=0.0).build(docs)
 
@@ -100,8 +184,6 @@ print(f"IC (3M):          {r.ic_3m:.3f}")
 print(f"Regime beta high: {r.regime_beta_high:.4f}")
 print(f"Regime beta low:  {r.regime_beta_low:.4f}")
 print(f"N observations:   {r.n_observations}")
-print(f"N high-vol:       {r.n_high_vol}")
-print(f"N low-vol:        {r.n_low_vol}")
 
 # Full regime OLS output (for research reporting)
 if r.regime_results_high:
