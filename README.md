@@ -33,6 +33,11 @@ An NLP pipeline that quantifies Bank of England Monetary Policy Committee (MPC) 
 
 The dictionary-based sentiment signal does not carry statistically significant predictive content for gilt yields at conventional levels. This is consistent with efficient incorporation of monetary policy expectations into bond prices ahead of minutes publication.
 
+## Charts
+
+![Hawkishness Index](docs/figures/hawkishness_index.png)
+![Cross Correlation](docs/figures/cross_correlation.png)
+
 ## Installation
 ```bash
 git clone https://github.com/kostadinstoyanovuk/boe-sentiment-engine.git
